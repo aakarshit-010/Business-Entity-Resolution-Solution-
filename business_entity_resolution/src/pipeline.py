@@ -198,9 +198,9 @@ def save_checkpoint(data, filepath):
     with open(filepath, 'wb') as f:
         pickle.dump(data, f)
 
-def generate_candidates_country(s1_country_df, sx_country_df, country, max_per_s1=100):
+def generate_candidates_country(s1_country_df, sx_country_df, country, max_per_s1=100, prefix="train"):
     """Generate candidates within a single country partition (strategy by strategy)."""
-    log(f"  Blocking for {country}: {len(s1_country_df)} S1 x {len(sx_country_df)} SX")
+    log(f"  Blocking for {country} ({prefix}): {len(s1_country_df)} S1 x {len(sx_country_df)} SX")
     
     chk_dir = os.path.join(OUTPUT_DIR, 'checkpoints')
     os.makedirs(chk_dir, exist_ok=True)
@@ -225,31 +225,99 @@ def generate_candidates_country(s1_country_df, sx_country_df, country, max_per_s
     
     for strat_idx, (strat_name, col_name) in enumerate(strategies):
         strat_num = strat_idx + 1
-        chk_file = os.path.join(chk_dir, f"{country}_strat{strat_num}_{strat_name}.pkl")
+        chk_file = os.path.join(chk_dir, f"{prefix}_{country}_strat{strat_num}_{strat_name}.pkl")
+        legacy_chk_file = os.path.join(chk_dir, f"{country}_strat{strat_num}_{strat_name}.pkl")
         
-        strat_cands = load_checkpoint(chk_file)
+        strat_cands = None
+        if os.path.exists(chk_file):
+            strat_cands = load_checkpoint(chk_file)
+        elif prefix == "train" and os.path.exists(legacy_chk_file):
+            strat_cands = load_checkpoint(legacy_chk_file)
+            
         if strat_cands is not None:
             log(f"    Loaded checkpoint for {country} Strategy {strat_num} ({strat_name})")
             for sid, cset in strat_cands.items():
-                all_cands[sid].update(cset)
+                if sid in all_cands:
+                    all_cands[sid].update(cset)
             del strat_cands
-            import gc
             gc.collect()
             continue
             
         log(f"    Running {country} Strategy {strat_num} ({strat_name})...")
         strat_cands = defaultdict(set)
         
-        # Build index for this strategy ONLY
-        idx = defaultdict(list)
-        if strat_num == 6: # token overlap
-            for eid, name in zip(sx_country_df['entity_id'].values, sx_country_df[col_name].values):
-                if name:
-                    for t in name.split():
-                        if len(t) > 2:
-                            idx[t].append(eid)
-            idx = {k: v for k, v in idx.items() if len(v) <= 10000}
+        if strat_num == 6:  # token overlap (NumPy vectorized)
+            t_idx_start = time.time()
+            sx_eids = list(sx_country_df['entity_id'].values)
+            name_arr = sx_country_df[col_name].values
+            
+            raw_idx = defaultdict(list)
+            for i, name in enumerate(name_arr):
+                if name and isinstance(name, str):
+                    toks = set(t for t in name.split() if len(t) > 2)
+                    for t in toks:
+                        raw_idx[t].append(i)
+            
+            # Cap posting list size at 5000 and store as sorted int32 numpy arrays
+            idx = {k: np.array(v, dtype=np.int32) for k, v in raw_idx.items() if len(v) <= 5000}
+            del raw_idx
+            gc.collect()
+            log(f"      Strat 6 index built: {len(idx)} tokens (cap 5000) in {time.time() - t_idx_start:.1f}s")
+            
+            t_scan_start = time.time()
+            n_s1 = len(s1_ids)
+            for i in range(n_s1):
+                if i % 100000 == 0 and i > 0:
+                    log(f"      Strat 6 progress: {i}/{n_s1} ({time.time() - t_scan_start:.1f}s)")
+                
+                name = s1_names[i]
+                if not name or not isinstance(name, str):
+                    continue
+                
+                toks = [t for t in set(name.split()) if len(t) > 2]
+                if not toks:
+                    continue
+                
+                min_overlap = min(2, len(toks))
+                postings = [idx[t] for t in toks if t in idx]
+                
+                if len(postings) < min_overlap:
+                    continue
+                
+                cands = set()
+                if min_overlap == 1:
+                    cand_inds = postings[0]
+                    if len(cand_inds) > max_per_s1:
+                        cand_inds = cand_inds[:max_per_s1]
+                    cands = {sx_eids[j] for j in cand_inds}
+                elif len(postings) == 2:
+                    cand_inds = np.intersect1d(postings[0], postings[1], assume_unique=True)
+                    if len(cand_inds) > 0:
+                        if len(cand_inds) > max_per_s1:
+                            cand_inds = cand_inds[:max_per_s1]
+                        cands = {sx_eids[j] for j in cand_inds}
+                else:
+                    concat = np.concatenate(postings)
+                    concat.sort()
+                    dup_mask = (concat[:-1] == concat[1:])
+                    if np.any(dup_mask):
+                        cand_inds = np.unique(concat[:-1][dup_mask])
+                        if len(cand_inds) > max_per_s1:
+                            cand_inds = cand_inds[:max_per_s1]
+                        cands = {sx_eids[j] for j in cand_inds}
+                
+                if cands:
+                    s1_id = s1_ids[i]
+                    strat_cands[s1_id] = cands
+                    all_cands[s1_id].update(cands)
+            
+            del idx, sx_eids
+            gc.collect()
+            log(f"      Strat 6 scan complete in {time.time() - t_scan_start:.1f}s")
+            
         else:
+            # Build index for strategies 1-5
+            idx = defaultdict(list)
             for eid, val in zip(sx_country_df['entity_id'].values, sx_country_df[col_name].values):
                 if val:
                     if strat_num == 3 and len(val) < 4:
@@ -261,53 +329,39 @@ def generate_candidates_country(s1_country_df, sx_country_df, country, max_per_s
                 idx = {k: v for k, v in idx.items() if len(v) <= 500}
             elif strat_num == 4:
                 idx = {k: v for k, v in idx.items() if len(v) <= 2000}
-        
-        # Scan S1
-        for i in range(len(s1_ids)):
-            s1_id = s1_ids[i]
-            cands = set()
             
-            if strat_num == 1:
-                v = s1_names[i]
-                if v and v in idx: cands.update(idx[v])
-            elif strat_num == 2:
-                v = s1_sorted[i]
-                if v and v in idx: cands.update(idx[v])
-            elif strat_num == 3:
-                v = s1_prefix4[i]
-                if v and v in idx: cands.update(idx[v])
-            elif strat_num == 4:
-                v = s1_ft[i]
-                if v and v in idx: cands.update(idx[v])
-            elif strat_num == 5:
-                v = s1_postal[i]
-                if v and v in idx: cands.update(idx[v])
-            elif strat_num == 6:
-                name = s1_names[i]
-                if name:
-                    tokens = [t for t in name.split() if len(t) > 2]
-                    if tokens:
-                        from collections import Counter
-                        token_counts = Counter()
-                        for t in tokens:
-                            if t in idx:
-                                for cid in idx[t]:
-                                    token_counts[cid] += 1
-                        min_overlap = min(2, len(tokens))
-                        for cid, cnt in token_counts.items():
-                            if cnt >= min_overlap:
-                                cands.add(cid)
-            
-            if cands:
-                strat_cands[s1_id] = cands
-                all_cands[s1_id].update(cands)
+            # Scan S1 for strategies 1-5
+            for i in range(len(s1_ids)):
+                s1_id = s1_ids[i]
+                cands = set()
                 
+                if strat_num == 1:
+                    v = s1_names[i]
+                    if v and v in idx: cands.update(idx[v])
+                elif strat_num == 2:
+                    v = s1_sorted[i]
+                    if v and v in idx: cands.update(idx[v])
+                elif strat_num == 3:
+                    v = s1_prefix4[i]
+                    if v and v in idx: cands.update(idx[v])
+                elif strat_num == 4:
+                    v = s1_ft[i]
+                    if v and v in idx: cands.update(idx[v])
+                elif strat_num == 5:
+                    v = s1_postal[i]
+                    if v and v in idx: cands.update(idx[v])
+                
+                if cands:
+                    strat_cands[s1_id] = cands
+                    all_cands[s1_id].update(cands)
+            
+            del idx
+            
         # Save checkpoint and free memory
         save_checkpoint(dict(strat_cands), chk_file)
-        del idx
         del strat_cands
-        import gc
         gc.collect()
+        log(f"    Saved checkpoint for {country} Strategy {strat_num} ({strat_name})")
 
     # Cap candidates per S1
     capped = {}
@@ -319,7 +373,8 @@ def generate_candidates_country(s1_country_df, sx_country_df, country, max_per_s
             
     return capped
 
-def generate_all_candidates(s1_df, sx_df):
+
+def generate_all_candidates(s1_df, sx_df, max_per_s1=100, prefix="train"):
     """Generate candidates partitioned by country."""
     all_candidates = {}
     countries = sorted(s1_df['country'].unique())
@@ -329,10 +384,9 @@ def generate_all_candidates(s1_df, sx_df):
         sx_c = sx_df[sx_df['country'] == country].reset_index(drop=True)
         if len(s1_c) == 0 or len(sx_c) == 0:
             continue
-        cands = generate_candidates_country(s1_c, sx_c, country)
+        cands = generate_candidates_country(s1_c, sx_c, country, max_per_s1=max_per_s1, prefix=prefix)
         all_candidates.update(cands)
         del s1_c, sx_c
-        import gc
         gc.collect()
 
     return all_candidates
@@ -573,7 +627,7 @@ def main():
 
     # ---- Blocking ----
     log("Generating candidates...")
-    all_cands = generate_all_candidates(s1_train, sx_train)
+    all_cands = generate_all_candidates(s1_train, sx_train, prefix="train")
 
     # Measure blocking recall
     tp_block = 0
@@ -811,7 +865,7 @@ def main():
     gc.collect()
 
     log("Generating test candidates...")
-    test_cands = generate_all_candidates(s1_test, sx_test)
+    test_cands = generate_all_candidates(s1_test, sx_test, prefix="test")
     total_test_pairs = sum(len(v) for v in test_cands.values())
     log(f"Test candidate pairs: {total_test_pairs}")
 

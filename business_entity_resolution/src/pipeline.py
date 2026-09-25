@@ -27,10 +27,10 @@ warnings.filterwarnings('ignore')
 # CONFIG
 # ============================================================
 BASE = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(BASE, '..', '..', '..'))
-TRAIN_DIR = os.path.join(PROJECT_ROOT, 'dataset', 'train')
-TEST_DIR = os.path.join(PROJECT_ROOT, 'dataset', 'test')
-OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'output')
+WORKSPACE_ROOT = os.path.abspath(os.path.join(BASE, '..', '..'))
+TRAIN_DIR = os.path.join(WORKSPACE_ROOT, 'student_resource', 'student_resource', 'dataset', 'train')
+TEST_DIR = os.path.join(WORKSPACE_ROOT, 'student_resource', 'student_resource', 'dataset', 'test')
+OUTPUT_DIR = os.path.join(WORKSPACE_ROOT, 'output')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 SEED = 42
@@ -186,118 +186,138 @@ def build_block_index(sx_df, block_key_func, max_block_size=500):
     return idx
 
 
+import pickle
+
+def load_checkpoint(filepath):
+    if os.path.exists(filepath):
+        with open(filepath, 'rb') as f:
+            return pickle.load(f)
+    return None
+
+def save_checkpoint(data, filepath):
+    with open(filepath, 'wb') as f:
+        pickle.dump(data, f)
+
 def generate_candidates_country(s1_country_df, sx_country_df, country, max_per_s1=100):
-    """Generate candidates within a single country partition."""
+    """Generate candidates within a single country partition (strategy by strategy)."""
     log(f"  Blocking for {country}: {len(s1_country_df)} S1 x {len(sx_country_df)} SX")
-
-    candidates = defaultdict(set)
-
-    # Pre-build indexes for SX
-    # 1. Exact clean name index
-    name_idx = defaultdict(list)
-    for eid, name in zip(sx_country_df['entity_id'].values, sx_country_df['name_clean'].values):
-        if name:
-            name_idx[name].append(eid)
-
-    # 2. Sorted tokens index
-    sorted_idx = defaultdict(list)
-    for eid, st in zip(sx_country_df['entity_id'].values, sx_country_df['name_sorted'].values):
-        if st:
-            sorted_idx[st].append(eid)
-
-    # 3. Name prefix4 index
-    prefix4_idx = defaultdict(list)
-    for eid, p4 in zip(sx_country_df['entity_id'].values, sx_country_df['name_prefix4'].values):
-        if p4 and len(p4) >= 4:
-            prefix4_idx[p4].append(eid)
-
-    # 4. First token index (filtered by size)
-    ft_idx = defaultdict(list)
-    for eid, ft in zip(sx_country_df['entity_id'].values, sx_country_df['first_token'].values):
-        if ft and len(ft) > 2:
-            ft_idx[ft].append(eid)
-    ft_idx = {k: v for k, v in ft_idx.items() if len(v) <= 2000}
-
-    # 5. Postal code index
-    postal_idx = defaultdict(list)
-    for eid, pc in zip(sx_country_df['entity_id'].values, sx_country_df['postal'].values):
-        if pc:
-            postal_idx[pc].append(eid)
-
-    # 6. Token inverted index (for token overlap blocking)
-    token_idx = defaultdict(list)
-    for eid, name in zip(sx_country_df['entity_id'].values, sx_country_df['name_clean'].values):
-        if name:
-            for t in name.split():
-                if len(t) > 2:
-                    token_idx[t].append(eid)
-    # Remove very common tokens (> 10000 occurrences)
-    token_idx = {k: v for k, v in token_idx.items() if len(v) <= 10000}
-
-    log(f"    Indexes built. Scanning S1 entities...")
-
+    
+    chk_dir = os.path.join(OUTPUT_DIR, 'checkpoints')
+    os.makedirs(chk_dir, exist_ok=True)
+    
     s1_ids = s1_country_df['entity_id'].values
     s1_names = s1_country_df['name_clean'].values
     s1_sorted = s1_country_df['name_sorted'].values
     s1_prefix4 = s1_country_df['name_prefix4'].values
     s1_ft = s1_country_df['first_token'].values
     s1_postal = s1_country_df['postal'].values
+    
+    all_cands = {sid: set() for sid in s1_ids}
+    
+    strategies = [
+        ('exact_name', 'name_clean'),
+        ('sorted_tokens', 'name_sorted'),
+        ('name_prefix4', 'name_prefix4'),
+        ('first_token', 'first_token'),
+        ('postal', 'postal'),
+        ('token_overlap', 'name_clean')
+    ]
+    
+    for strat_idx, (strat_name, col_name) in enumerate(strategies):
+        strat_num = strat_idx + 1
+        chk_file = os.path.join(chk_dir, f"{country}_strat{strat_num}_{strat_name}.pkl")
+        
+        strat_cands = load_checkpoint(chk_file)
+        if strat_cands is not None:
+            log(f"    Loaded checkpoint for {country} Strategy {strat_num} ({strat_name})")
+            for sid, cset in strat_cands.items():
+                all_cands[sid].update(cset)
+            del strat_cands
+            import gc
+            gc.collect()
+            continue
+            
+        log(f"    Running {country} Strategy {strat_num} ({strat_name})...")
+        strat_cands = defaultdict(set)
+        
+        # Build index for this strategy ONLY
+        idx = defaultdict(list)
+        if strat_num == 6: # token overlap
+            for eid, name in zip(sx_country_df['entity_id'].values, sx_country_df[col_name].values):
+                if name:
+                    for t in name.split():
+                        if len(t) > 2:
+                            idx[t].append(eid)
+            idx = {k: v for k, v in idx.items() if len(v) <= 10000}
+        else:
+            for eid, val in zip(sx_country_df['entity_id'].values, sx_country_df[col_name].values):
+                if val:
+                    if strat_num == 3 and len(val) < 4:
+                        continue
+                    if strat_num == 4 and len(val) <= 2:
+                        continue
+                    idx[val].append(eid)
+            if strat_num == 3:
+                idx = {k: v for k, v in idx.items() if len(v) <= 500}
+            elif strat_num == 4:
+                idx = {k: v for k, v in idx.items() if len(v) <= 2000}
+        
+        # Scan S1
+        for i in range(len(s1_ids)):
+            s1_id = s1_ids[i]
+            cands = set()
+            
+            if strat_num == 1:
+                v = s1_names[i]
+                if v and v in idx: cands.update(idx[v])
+            elif strat_num == 2:
+                v = s1_sorted[i]
+                if v and v in idx: cands.update(idx[v])
+            elif strat_num == 3:
+                v = s1_prefix4[i]
+                if v and v in idx: cands.update(idx[v])
+            elif strat_num == 4:
+                v = s1_ft[i]
+                if v and v in idx: cands.update(idx[v])
+            elif strat_num == 5:
+                v = s1_postal[i]
+                if v and v in idx: cands.update(idx[v])
+            elif strat_num == 6:
+                name = s1_names[i]
+                if name:
+                    tokens = [t for t in name.split() if len(t) > 2]
+                    if tokens:
+                        from collections import Counter
+                        token_counts = Counter()
+                        for t in tokens:
+                            if t in idx:
+                                for cid in idx[t]:
+                                    token_counts[cid] += 1
+                        min_overlap = min(2, len(tokens))
+                        for cid, cnt in token_counts.items():
+                            if cnt >= min_overlap:
+                                cands.add(cid)
+            
+            if cands:
+                strat_cands[s1_id] = cands
+                all_cands[s1_id].update(cands)
+                
+        # Save checkpoint and free memory
+        save_checkpoint(dict(strat_cands), chk_file)
+        del idx
+        del strat_cands
+        import gc
+        gc.collect()
 
-    for i in range(len(s1_ids)):
-        if i % 200000 == 0 and i > 0:
-            log(f"    Processed {i}/{len(s1_ids)}")
-
-        s1_id = s1_ids[i]
-        cands = set()
-
-        # Strategy 1: Exact clean name
-        name = s1_names[i]
-        if name and name in name_idx:
-            cands.update(name_idx[name])
-
-        # Strategy 2: Sorted tokens
-        st = s1_sorted[i]
-        if st and st in sorted_idx:
-            cands.update(sorted_idx[st])
-
-        # Strategy 3: Name prefix4
-        p4 = s1_prefix4[i]
-        if p4 and p4 in prefix4_idx and len(prefix4_idx[p4]) <= 500:
-            cands.update(prefix4_idx[p4])
-
-        # Strategy 4: First token
-        ft = s1_ft[i]
-        if ft and ft in ft_idx:
-            cands.update(ft_idx[ft])
-
-        # Strategy 5: Postal code
-        pc = s1_postal[i]
-        if pc and pc in postal_idx:
-            cands.update(postal_idx[pc])
-
-        # Strategy 6: Token overlap (need >= 2 shared tokens, or 1 if only 1 token)
-        if name:
-            tokens = [t for t in name.split() if len(t) > 2]
-            if tokens:
-                token_counts = Counter()
-                for t in tokens:
-                    if t in token_idx:
-                        for cid in token_idx[t]:
-                            token_counts[cid] += 1
-                min_overlap = min(2, len(tokens))
-                for cid, cnt in token_counts.items():
-                    if cnt >= min_overlap:
-                        cands.add(cid)
-
-        # Cap
-        if len(cands) > max_per_s1:
-            cands = set(list(cands)[:max_per_s1])
-
-        if cands:
-            candidates[s1_id] = cands
-
-    return candidates
-
+    # Cap candidates per S1
+    capped = {}
+    for sid, cset in all_cands.items():
+        if len(cset) > max_per_s1:
+            capped[sid] = set(list(cset)[:max_per_s1])
+        elif cset:
+            capped[sid] = cset
+            
+    return capped
 
 def generate_all_candidates(s1_df, sx_df):
     """Generate candidates partitioned by country."""
@@ -312,6 +332,7 @@ def generate_all_candidates(s1_df, sx_df):
         cands = generate_candidates_country(s1_c, sx_c, country)
         all_candidates.update(cands)
         del s1_c, sx_c
+        import gc
         gc.collect()
 
     return all_candidates

@@ -1,0 +1,197 @@
+=== ROW COUNTS ===
+  train_source1: 2,206,821
+  train_source2: 5,034,616
+  train_source3: 5,285,603
+  train_ground_truth: 2,206,821
+  test_source1: 1,732,544
+  test_source2: 4,887,273
+  test_source3: 5,082,316
+
+=== GROUND TRUTH ANALYSIS ===
+  Total S1 in GT: 2,206,821
+  Singletons: 123,247 (5.6%)
+  With matches: 2,083,574
+
+  Match count distribution:
+    0: 123,247
+    1: 119,157
+    2: 375,212
+    3: 530,841
+    4: 484,115
+    5: 321,957
+    6: 164,868
+    7: 63,968
+    8: 18,680
+    9: 4,205
+    10: 534
+    11: 37
+
+  S1->S2 links: 3,693,619
+  S1->S3 links: 3,944,746
+
+  S2/S3 matching multiple S1: 0
+
+=== SAMPLE DATA ===
+
+  S1 train:
+    Columns: ['entity_id', 'business_name', 'business_address', 'country']
+    {'entity_id': 'S1-925783039', 'business_name': "Orelee's Barbershop", 'business_address': '1795 Westchester Drive, High Point, NC', 'country': 'US'}
+    {'entity_id': 'S1-773889195', 'business_name': 'Prime Money', 'business_address': '17560 Ellis Road, Tahlequah, OK', 'country': 'US'}
+    {'entity_id': 'S1-377745466', 'business_name': 'B+ Retail Inc', 'business_address': '1712 Montebello Avenue, Phoenix, AZ', 'country': 'US'}
+    {'entity_id': 'S1-133037285', 'business_name': 'Christ Chapel', 'business_address': '2100 Cameron Drive, Unit APARTMENT G, Dundalk, MD', 'country': 'US'}
+    {'entity_id': 'S1-755362802', 'business_name': 'Prabhav Business Center', 'business_address': '797, Lake Town Block A, Kolkata, Howrah, West Bengal', 'country': 'India'}
+
+  S2 train:
+    Columns: ['entity_id', 'business_name', 'business_address', 'country']
+    {'entity_id': 'S2-166376419', 'business_name': 'राम मार्केटिंग प्राइवेट लिमिटेड', 'business_address': 'KH NO. -570/13, NEW DELHI, WEST DELHI, Delhi', 'country': 'India'}
+    {'entity_id': 'S2-764573417', 'business_name': '-- Holloway Peak Inc Seafood', 'business_address': '105 ELM ST, MORGANTON, NC', 'country': 'US'}
+    {'entity_id': 'S2-639257739', 'business_name': 'आदित्य प्रॉपर्टीज एलएलपी', 'business_address': 'G-3/571, GULMOHAR COLONY, BHOPAL, Madhya Pradesh', 'country': 'India'}
+    {'entity_id': 'S2-163963287', 'business_name': 'Summit Inc', 'business_address': 'GREENSBORO, NC, 19 1/2 STARDUST TRAIL', 'country': 'US'}
+    {'entity_id': 'S2-49942811', 'business_name': 'Delta Tetlecommunication Inc', 'business_address': '914 PIERPONT AVE, CLEVELAND, OH', 'country': 'US'}
+
+  S3 train:
+    Columns: ['entity_id', 'business_name', 'business_address', 'country']
+    {'entity_id': 'S3-202863386', 'business_name': 'wilfordhancock.com', 'business_address': 'Mack Rd, Haltom City, Texas', 'country': 'US'}
+    {'entity_id': 'S3-859268022', 'business_name': 'International South Consultants Private Ltd', 'business_address': nan, 'country': 'India'}
+    {'entity_id': 'S3-22467283', 'business_name': 'LLC Moncada Léarning Center', 'business_address': '5780 Fawn Ct, Fort Worth, Texas', 'country': 'US'}
+    {'entity_id': 'S3-671162755', 'business_name': "Moyna's Coffee", 'business_address': '1 Ivanhoe Ave, PO Box 6009, Cincinnati, Ohio', 'country': 'US'}
+    {'entity_id': 'S3-960981775', 'business_name': 'Pvt. EFS Print Ventures Ltd.', 'business_address': 'Door No 183, 41St Cross, 22Nd Main 9Th Block Jayanagar, Bengaluru Urban, Bangalore, ಕರ್ನಾಟಕ', 'country': 'India'}
+
+  S1 test:
+    Columns: ['entity_id', 'business_name', 'business_address', 'country']
+    {'entity_id': 'S1-714132312', 'business_name': 'Zephay Labs Inc', 'business_address': '2621 Cotten Road, Tyler, TX', 'country': 'US'}
+    {'entity_id': 'S1-106407869', 'business_name': 'Vision Partners Corp', 'business_address': 'IA, Iowa City, 1064 Newton Rd, Unit 11', 'country': 'US'}
+    {'entity_id': 'S1-156285671', 'business_name': '<< Team Ecole', 'business_address': '175 Boulevard du Président Franklin Roosevelt, Bordeaux, Nouvelle-Aquitaine', 'country': 'France'}
+    {'entity_id': 'S1-689823050', 'business_name': 'Red Perfect Trading', 'business_address': 'Mirzapur, Ews 12, Uttar Pradesh, Mirzapursadar, Awas Vikas Colony', 'country': 'India'}
+    {'entity_id': 'S1-921369899', 'business_name': 'ZNB Club SARL', 'business_address': 'Nouvelle-Aquitaine, La Teste-de-Buch, 5 bis Rue Pierre Dignac', 'country': 'France'}
+
+=== COUNTRY DISTRIBUTIONS ===
+
+  S1 train:
+    US: 1,323,633
+    India: 883,188
+
+  S2 train:
+    US: 3,016,817
+    India: 2,017,799
+
+  S3 train:
+    US: 3,170,056
+    India: 2,115,547
+
+  S1 test:
+    India: 809,986
+    US: 663,106
+    France: 259,452
+
+  S2 test:
+    India: 2,312,565
+    US: 1,871,330
+    France: 703,378
+
+  S3 test:
+    India: 2,405,000
+    US: 1,945,701
+    France: 731,615
+
+=== MISSING VALUES ===
+
+  S1 train:
+    entity_id: 0 (0.00%)
+    business_name: 0 (0.00%)
+    business_address: 0 (0.00%)
+    country: 0 (0.00%)
+
+  S2 train:
+    entity_id: 0 (0.00%)
+    business_name: 2 (0.00%)
+    business_address: 168,967 (3.36%)
+    country: 0 (0.00%)
+
+  S3 train:
+    entity_id: 0 (0.00%)
+    business_name: 13 (0.00%)
+    business_address: 175,916 (3.33%)
+    country: 0 (0.00%)
+
+=== SAMPLE MATCHED PAIRS ===
+
+  Pair 1:
+    S1 [S1-965667]: Maure Williams Colombier Inc | 85 Wayne Avenue, Ticonderoga, NY | US
+    Mx [S2-681193310]:   Maure Wilblims Colombier Inc | nan | US
+
+  Pair 2:
+    S1 [S1-965667]: Maure Williams Colombier Inc | 85 Wayne Avenue, Ticonderoga, NY | US
+    Mx [S2-743505751]:   Maure Williams Colombier | nan | US
+
+  Pair 3:
+    S1 [S1-965667]: Maure Williams Colombier Inc | 85 Wayne Avenue, Ticonderoga, NY | US
+    Mx [S3-775321672]:   Dréxkor | 85 Wanye Avenue, Ticonderoga Townshiip, New York | US
+
+  Pair 4:
+    S1 [S1-965667]: Maure Williams Colombier Inc | 85 Wayne Avenue, Ticonderoga, NY | US
+    Mx [S3-11291185]:   maurewilliamscolombier.com | Wayne Ave, Ticonderoga Townshiip, New York | US
+
+  Pair 5:
+    S1 [S1-965667]: Maure Williams Colombier Inc | 85 Wayne Avenue, Ticonderoga, NY | US
+    Mx [S3-860443364]:   Maure Williams Inc Center | nan | US
+
+  Pair 6:
+    S1 [S1-55344266]: Raj Investments LLP | 6(29), C.I.T. Colony, 2Nd Main Road Mylapore, Chennai, Tamil Nadu | India
+    Mx [S2-249013014]:   ராஜ் இன்வெஸ்ட்மெண்ட்ஸ் எல்எல்பி | 6(29), C.I.T. COLONY, 2ND MAIN ROAD MYLAPORE, CHENNAI, Tamil Nadu | India
+
+  Pair 7:
+    S1 [S1-55344266]: Raj Investments LLP | 6(29), C.I.T. Colony, 2Nd Main Road Mylapore, Chennai, Tamil Nadu | India
+    Mx [S2-197070651]:   Raj Investments LLP | 6(29), C.I.T. COLONY, 2ND MAIN ROAD MYLAPORE, CHENNAI, Tamil Nadu | India
+
+  Pair 8:
+    S1 [S1-55344266]: Raj Investments LLP | 6(29), C.I.T. Colony, 2Nd Main Road Mylapore, Chennai, Tamil Nadu | India
+    Mx [S3-478195123]:   Raj Investments எல்எல்பி | 6(29), C.i.t. Colony, 2Nd Main Road Mylapore, Chennai, TN | India
+
+  Pair 9:
+    S1 [S1-55344266]: Raj Investments LLP | 6(29), C.I.T. Colony, 2Nd Main Road Mylapore, Chennai, Tamil Nadu | India
+    Mx [S3-384364074]:   ராஜ் இன்வெஸ்ட்மெண்ட்ஸ் எல்எல்பி | 6(29), C.i.t. Colony, 2Nd Main Road Mylapore, Chennai, தமிழ்நாடு | India
+
+  Pair 10:
+    S1 [S1-343815751]: Dahlia Power Reliable Scientific LLC | 630 45th Terrace, Kansas City, MO | US
+    Mx [S2-790675320]:   Dahlia Power Reliable | KANSAS CITY, MO, 630 45ND TERRACE, null | US
+
+  Pair 11:
+    S1 [S1-343815751]: Dahlia Power Reliable Scientific LLC | 630 45th Terrace, Kansas City, MO | US
+    Mx [S2-479876582]:   Dahlia Power Reliable Scientific | 45ND TERRACE, null, KANSAS CITY, MO | US
+
+  Pair 12:
+    S1 [S1-343815751]: Dahlia Power Reliable Scientific LLC | 630 45th Terrace, Kansas City, MO | US
+    Mx [S3-878454467]:   Dahlia Ponr Reliable Scientific LLC | Missouri, 630 45th Terrace, Kansas City | US
+
+  Pair 13:
+    S1 [S1-656753428]: Ss Food Private Limited | Af-684, Nandgram Near Mother India Public School. Ph. 989, 9487203, Ghaziabad, Uttar Pradesh | India
+    Mx [S2-153058913]:   एसएस फूड प्राइवेट लिमिटेड | AF-0684, NANDGRAM NEAR MOTHER INDIA PUBLIC SCHOOL. PH. 989, GHAZIABAD, 9487203, उत्तर प्रदेश | India
+
+  Pair 14:
+    S1 [S1-656753428]: Ss Food Private Limited | Af-684, Nandgram Near Mother India Public School. Ph. 989, 9487203, Ghaziabad, Uttar Pradesh | India
+    Mx [S2-24659151]:   एसएस फूड प्राइवेट लिमिटेड | AF-0684, Uttar Pradesh, GHAZIABAD, 9487203 | India
+
+  Pair 15:
+    S1 [S1-656753428]: Ss Food Private Limited | Af-684, Nandgram Near Mother India Public School. Ph. 989, 9487203, Ghaziabad, Uttar Pradesh | India
+    Mx [S3-679606215]:   एसएस फूड प्राइवेट लिमिटेड | Af-684, Ghaziabad, UP | India
+
+  Pair 16:
+    S1 [S1-102811957]: Payne Enterprises | 3315 Fremont Street, Peoria, IL | US
+    Mx [S2-478959098]:   Payne Énterprises | 3315 FREMONT ST, PEORIA, IL | US
+
+  Pair 17:
+    S1 [S1-102811957]: Payne Enterprises | 3315 Fremont Street, Peoria, IL | US
+    Mx [S2-553508714]:   Payne Enterpires | 3315 FREMONT ST, PEORIA, IL | US
+
+  Pair 18:
+    S1 [S1-102811957]: Payne Enterprises | 3315 Fremont Street, Peoria, IL | US
+    Mx [S2-625774905]:   PAYNE-ENRTPRMISES | 3315 FREMONT SAINT, PEORIA, IL | US
+
+  Pair 19:
+    S1 [S1-102811957]: Payne Enterprises | 3315 Fremont Street, Peoria, IL | US
+    Mx [S3-728090388]:   Payne Etrepndiels | 3315 Fremont St, Peoria, Illinois | US
+
+  Pair 20:
+    S1 [S1-102811957]: Payne Enterprises | 3315 Fremont Street, Peoria, IL | US
+    Mx [S3-928796641]:   Payne Énterprises | 3315 Fremont Street, Peoria, Illinois | US

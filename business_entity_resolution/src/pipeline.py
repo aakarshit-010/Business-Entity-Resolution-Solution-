@@ -331,31 +331,42 @@ def generate_candidates_country(s1_country_df, sx_country_df, country, max_per_s
                 idx = {k: v for k, v in idx.items() if len(v) <= 2000}
             
             # Scan S1 for strategies 1-5
-            for i in range(len(s1_ids)):
+            t_scan_strat = time.time()
+            n_s1 = len(s1_ids)
+            for i in range(n_s1):
+                if i % 250000 == 0 and i > 0:
+                    log(f"      Strat {strat_num} progress: {i}/{n_s1} ({time.time() - t_scan_strat:.1f}s)")
+
                 s1_id = s1_ids[i]
                 cands = set()
                 
                 if strat_num == 1:
                     v = s1_names[i]
-                    if v and v in idx: cands.update(idx[v])
                 elif strat_num == 2:
                     v = s1_sorted[i]
-                    if v and v in idx: cands.update(idx[v])
                 elif strat_num == 3:
                     v = s1_prefix4[i]
-                    if v and v in idx: cands.update(idx[v])
                 elif strat_num == 4:
                     v = s1_ft[i]
-                    if v and v in idx: cands.update(idx[v])
                 elif strat_num == 5:
                     v = s1_postal[i]
-                    if v and v in idx: cands.update(idx[v])
+                else:
+                    v = None
+
+                if v and v in idx:
+                    matched = idx[v]
+                    if len(matched) > max_per_s1:
+                        cands = set(matched[:max_per_s1])
+                    else:
+                        cands = set(matched)
                 
                 if cands:
                     strat_cands[s1_id] = cands
                     all_cands[s1_id].update(cands)
             
             del idx
+            gc.collect()
+            log(f"      Strat {strat_num} scan complete in {time.time() - t_scan_strat:.1f}s")
             
         # Save checkpoint and free memory
         save_checkpoint(dict(strat_cands), chk_file)

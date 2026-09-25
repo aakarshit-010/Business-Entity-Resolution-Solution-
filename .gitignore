@@ -24,3 +24,6 @@ student_resource/output/*
 .venv/
 venv/
 env/
+
+# Dataset
+student_resource/

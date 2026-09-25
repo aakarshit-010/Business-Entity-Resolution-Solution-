@@ -27,3 +27,6 @@ env/
 
 # Dataset
 student_resource/
+
+# Output
+output/
